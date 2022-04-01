@@ -833,8 +833,9 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 		goto err;
 	}
 
-	if (cb->dst_port == QRTR_PORT_CTRL_LEGACY)
-		cb->dst_port = QRTR_PORT_CTRL;
+	skb = __netdev_alloc_skb(NULL, len, GFP_ATOMIC | __GFP_NOWARN);
+	if (!skb)
+		return -ENOMEM;
 
 	if (len != ALIGN(size, 4) + hdrlen)
 		goto err;
@@ -1749,6 +1750,11 @@ static int qrtr_recvmsg(struct socket *sock, struct msghdr *msg,
 	rc = copied;
 
 	if (addr) {
+		/* There is an anonymous 2-byte hole after sq_family,
+		 * make sure to clear it.
+		 */
+		memset(addr, 0, sizeof(*addr));
+
 		addr->sq_family = AF_QIPCRTR;
 		addr->sq_node = cb->src_node;
 		addr->sq_port = cb->src_port;
